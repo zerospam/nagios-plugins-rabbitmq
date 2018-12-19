@@ -110,25 +110,27 @@ $p->getopts;
 my %warning;
 if (defined $p->opts->warning) {
     my @warning = split(',', $p->opts->warning);
-    $p->nagios_die("You should specify 1 to 5 ranges for --warning argument") unless $#warning < 5;
+    $p->nagios_die("You should specify 1 to 6 ranges for --warning argument") unless $#warning < 6;
 
     $warning{'messages'} = shift @warning;
     $warning{'messages_ready'} = shift @warning;
     $warning{'messages_unacknowledged'} = shift @warning;
     $warning{'consumers'} = shift @warning;
     $warning{'recoverable_slaves'} = shift @warning;
+    $warning{'publish_rate'} = shift @warning;
 }
 
 my %critical;
 if (defined $p->opts->critical) {
     my @critical = split(',', $p->opts->critical);
-    $p->nagios_die("You should specify specify 1 to 5 ranges for --critical argument") unless $#critical < 5;
+    $p->nagios_die("You should specify specify 1 to 6 ranges for --critical argument") unless $#critical < 6;
 
     $critical{'messages'} = shift @critical;
     $critical{'messages_ready'} = shift @critical;
     $critical{'messages_unacknowledged'} = shift @critical;
     $critical{'consumers'} = shift @critical;
     $critical{'recoverable_slaves'} = shift @critical;
+    $critical{'publish_rate'} = shift @critical;
 }
 
 
@@ -172,7 +174,7 @@ if ($retcode != 200) {
 }
 
 my @values = ();
-my @metrics = ("messages", "messages_ready", "messages_unacknowledged", "consumers", "recoverable_slaves");
+my @metrics = ("messages", "messages_ready", "messages_unacknowledged", "consumers", "recoverable_slaves", "publish_rate");
 
 for my $metric (@metrics) {
     my $warning = undef;
@@ -186,7 +188,11 @@ for my $metric (@metrics) {
         for my $queue (@$result){
             next if $queue->{name} !~ /$filter/i;
             my $value = 0;
-            $value = $queue->{$metric} if defined $queue->{$metric};
+            if($metric eq "publish_rate") {
+                $value = $queue->{'message_stats'}->{'publish_details'}->{'rate'} if defined $queue->{'message_stats'}->{'publish_details'}->{'rate'};
+            } else {
+                $value = $queue->{$metric} if defined $queue->{$metric};
+            }
             if($metric eq "recoverable_slaves" && $value != 0) {
                 $value = scalar @$value;
             }
@@ -201,7 +207,11 @@ for my $metric (@metrics) {
         $p->add_perfdata(label=>$metric, value=>sprintf("%.4f", $sum_metric_value/$nb_matched_queues), warning=>$warning, critical=> $critical);
     } else{
         my $value = 0;
-        $value = $result->{$metric} if defined $result->{$metric};
+        if($metric eq "publish_rate") {
+            $value = $queue->{'message_stats'}->{'publish_details'}->{'rate'} if defined $queue->{'message_stats'}->{'publish_details'}->{'rate'};
+        } else {
+            $value = $queue->{$metric} if defined $queue->{$metric};
+        }
         if($metric eq "recoverable_slaves" && $value != 0) {
             $value = scalar @$value;
         }
