@@ -110,23 +110,25 @@ $p->getopts;
 my %warning;
 if (defined $p->opts->warning) {
     my @warning = split(',', $p->opts->warning);
-    $p->nagios_die("You should specify 1 to 4 ranges for --warning argument") unless $#warning < 4;
+    $p->nagios_die("You should specify 1 to 5 ranges for --warning argument") unless $#warning < 5;
 
     $warning{'messages'} = shift @warning;
     $warning{'messages_ready'} = shift @warning;
     $warning{'messages_unacknowledged'} = shift @warning;
     $warning{'consumers'} = shift @warning;
+    $warning{'recoverable_slaves'} = shift @warning;
 }
 
 my %critical;
 if (defined $p->opts->critical) {
     my @critical = split(',', $p->opts->critical);
-    $p->nagios_die("You should specify specify 1 to 4 ranges for --critical argument") unless $#critical < 4;
+    $p->nagios_die("You should specify specify 1 to 5 ranges for --critical argument") unless $#critical < 5;
 
     $critical{'messages'} = shift @critical;
     $critical{'messages_ready'} = shift @critical;
     $critical{'messages_unacknowledged'} = shift @critical;
     $critical{'consumers'} = shift @critical;
+    $critical{'recoverable_slaves'} = shift @critical;
 }
 
 
@@ -170,7 +172,7 @@ if ($retcode != 200) {
 }
 
 my @values = ();
-my @metrics = ("messages", "messages_ready", "messages_unacknowledged", "consumers");
+my @metrics = ("messages", "messages_ready", "messages_unacknowledged", "consumers", "recoverable_slaves");
 
 for my $metric (@metrics) {
     my $warning = undef;
@@ -185,6 +187,9 @@ for my $metric (@metrics) {
             next if $queue->{name} !~ /$filter/i;
             my $value = 0;
             $value = $queue->{$metric} if defined $queue->{$metric};
+            if($metric eq "recoverable_slaves" && $value != 0) {
+                $value = scalar @$value;
+            }
             my $code = $p->check_threshold(check => $value, warning => $warning, critical=> $critical);
             push @values, $code;
             
@@ -197,6 +202,9 @@ for my $metric (@metrics) {
     } else{
         my $value = 0;
         $value = $result->{$metric} if defined $result->{$metric};
+        if($metric eq "recoverable_slaves" && $value != 0) {
+            $value = scalar @$value;
+        }
         my $code = $p->check_threshold(check => $value, warning => $warning, critical=> $critical);
         push @values, $code;
         
